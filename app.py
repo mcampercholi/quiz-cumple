@@ -10,7 +10,6 @@ print(__name__)
 
 @app.route('/')
 def landing():
-    print("Se ejecutó landing()")
     session.clear()
     return render_template('landing.html')
 
@@ -25,59 +24,25 @@ def quiz():
         session['q_index'] = 0
         session['score'] = 0
         session['last_correct'] = None
-        session['user_answer'] = ""
 
-    q_index = session['q_index']
-
-    if q_index >= len(questions):
+    if session['q_index'] >= len(questions):
         if session['score'] >= target_score:
             return redirect(url_for('meta'))
         else:
             return redirect(url_for('result'))
 
-    question = questions[q_index]
-
+    question = questions[session['q_index']]
     if request.method == 'POST':
-        user_answer = request.form.get('answer', '').strip()
-        is_correct = user_answer.lower() == question['answer'].strip().lower()
-
-        session['last_correct'] = is_correct
-        session['user_answer'] = user_answer  # original para mostrar
-
-        if is_correct:
-            session['score'] += question['weight']    
+        answer = request.form.get('answer')
+        if answer == question['answer']:
+            session['score'] += question['weight']
+            session['last_correct'] = True
         else:
-            session['score'] -= question['weight']
-
-        return render_template(
-            'quiz.html',
-            question=question,
-            score=session['score'],
-            target=target_score,
-            last_correct=is_correct,
-            show_feedback=True,
-            user_answer=user_answer
-        )
-
-    # GET después del feedback → avanzar
-    if session.get('last_correct') is not None:
+            session['last_correct'] = False
         session['q_index'] += 1
-        session['last_correct'] = None
-        session['user_answer'] = ""
         return redirect(url_for('quiz'))
 
-    return render_template(
-        'quiz.html',
-        question=question,
-        score=session['score'],
-        target=target_score,
-        last_correct=None,
-        show_feedback=False
-    )
-
-
-
-
+    return render_template('quiz.html', question=question, score=session['score'], target=target_score)
 
 @app.route('/result')
 def result():
