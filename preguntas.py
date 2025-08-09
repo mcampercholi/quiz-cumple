@@ -47,4 +47,5 @@ questions = [
 ]
 
 
-target_score = 400
+target_score = 1000
+max_lives = 3 

@@ -2,53 +2,34 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>¡Feliz cumple!</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .landing-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #cceeff;
-            text-align: center;
-            padding: 30px;
-        }
-
-        .landing-container h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-
-        .landing-container p {
-            font-size: 1.4em;
-            margin-bottom: 30px;
-        }
-
-        .start-button {
-            padding: 15px 30px;
-            font-size: 1.3em;
-            background-color: #3399ff;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .start-button:hover {
-            background-color: #007acc;
-        }
-    </style>
+    <title>Feliz cumple</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
 </head>
-<body>
-    <div class="landing-container">
+<body class="pre">
+    <!-- Pre-landing -->
+    <div class="pre-landing" id="pre-landing">
+        <button id="pre-start">Abrir regalo misterioso</button>
+    </div>
+
+    <!-- Landing real -->
+    <div class="landing-container" id="landing" style="display:none">
+        <audio id="bg-music" loop>
+            <source src="{{ url_for('static', filename='audio/landing.mp3') }}" type="audio/mpeg">
+        </audio>
         <h1>🎉 ¡Feliz cumple Chuiqui! 🎉</h1>
         <p>Preparé un juego especial para vos.</p>
         <form action="{{ url_for('quiz') }}" method="get">
             <button type="submit" class="start-button">¡Comenzar!</button>
         </form>
     </div>
+
+    <script>
+        document.getElementById("pre-start").addEventListener("click", function(){
+            document.body.classList.remove("pre"); // cambia fondo a bg.jpg
+            document.getElementById("pre-landing").style.display = "none";
+            document.getElementById("landing").style.display = "block";
+            document.getElementById("bg-music").play().catch(()=>{});
+        });
+    </script>
 </body>
 </html>

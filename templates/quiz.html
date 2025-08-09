@@ -1,47 +1,246 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Quiz</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8" />
+  <title>Quiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<div class="navbar">
-    Puntos actuales: {{ score }} / {{ target }}
-</div>
+  <!-- ===== Navbar pastel ===== -->
+  <div class="navbar">
+    <div class="nav-inner">
+      <!-- Izquierda: Reiniciar -->
+      <div class="nav-left">
+        <button class="nav-btn nav-reset" onclick="window.location.href='{{ url_for('reset') }}'">
+          <span class="icon">🔄</span><span class="label">Reiniciar</span>
+        </button>
+      </div>
 
-<div class="quiz-container">
-    <div class="question-text">
-        {{ question.text }}
+      <!-- Centro: marcador + vidas -->
+      <div class="nav-center">
+        <div class="score-board" aria-live="polite">
+          <span class="score-value-led">
+            <span id="nav-score">{{ score }}</span>
+            <span class="score-sep">/</span>
+            <span class="score-target">{{ target }}</span>
+          </span>
+        </div>
+        <div class="lives-board"><span id="lives"></span></div>
+      </div>
+
+      <!-- Derecha: Mute -->
+      <div class="nav-right">
+        <button id="muteBtn" class="nav-btn nav-mute" type="button">
+          <span class="icon">🔇</span><span class="label">Mute</span>
+        </button>
+      </div>
     </div>
+  </div>
 
-    {% if not show_feedback %}
-        <form method="post" class="quiz-form">
-            {% if question.type == 'mc' %}
-                {% for option in question.options %}
-                    <button type="submit" name="answer" value="{{ option }}" class="option-button">{{ option }}</button>
-                {% endfor %}
-            {% else %}
-                <input type="text" name="answer" class="text-input" placeholder="Escribí tu respuesta" autofocus>
-                <button type="submit" class="submit-button">Responder</button>
-            {% endif %}
-        </form>
+  <!-- ===== Contenido ===== -->
+  <div class="quiz-container">
+    <div class="question-text" id="q-text">{{ question.text }}</div>
+
+    {% if question.type == 'mc' %}
+      <form method="post" class="quiz-form" id="quiz-form">
+        {% for opt in question.options %}
+          <button type="submit" name="answer" value="{{ opt }}" class="option-button">{{ opt }}</button>
+        {% endfor %}
+      </form>
     {% else %}
-        {% if last_correct %}
-            <div class="feedback correct">
-                ¡Biem, <strong>{{ user_answer }}</strong><br> es correcto!
-            </div>
-        {% else %}
-            <div class="feedback incorrect">
-                Nuu... ¿cómo que <strong>{{ user_answer }}</strong>? Obviamente era <strong>{{ question.answer }}</strong>!
-            </div>
-        {% endif %}
-        <form method="get" action="{{ url_for('quiz') }}">
-            <button type="submit" class="submit-button">Siguiente pregunta</button>
-        </form>
+      <form method="post" class="quiz-form" id="quiz-form">
+        <input type="text" name="answer" class="text-input" placeholder="Escribí tu respuesta" autofocus>
+        <button type="submit" class="submit-button">Responder</button>
+      </form>
     {% endif %}
-</div>
 
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <!-- ===== Audio oculto ===== -->
+  <audio id="quizMusic"    src="{{ url_for('static', filename='audio/quiz_music.mp3') }}" loop preload="auto"></audio>
+  <audio id="sfxCorrect"   src="{{ url_for('static', filename='audio/correct.mp3') }}"  preload="auto"></audio>
+  <audio id="sfxIncorrect" src="{{ url_for('static', filename='audio/incorrect.mp3') }}" preload="auto"></audio>
+
+  <script>
+    // ===== Audio =====
+    const quizMusic    = document.getElementById('quizMusic');
+    const sfxCorrect   = document.getElementById('sfxCorrect');
+    const sfxIncorrect = document.getElementById('sfxIncorrect');
+    const muteBtn      = document.getElementById('muteBtn');
+
+    let isMuted = localStorage.getItem('quiz_muted') === '1';
+    function applyMute() {
+      [quizMusic, sfxCorrect, sfxIncorrect].forEach(a => a.muted = isMuted);
+      muteBtn.querySelector('.label').textContent = isMuted ? 'Unmute' : 'Mute';
+      localStorage.setItem('quiz_muted', isMuted ? '1' : '0');
+    }
+    muteBtn.addEventListener('click', () => { isMuted = !isMuted; applyMute(); });
+
+    quizMusic.volume = 0.35; sfxCorrect.volume = 0.85; sfxIncorrect.volume = 0.85;
+    function clonePlay(el){ if(isMuted) return; const c=el.cloneNode(true); c.volume=el.volume; c.play().catch(()=>{}); }
+    function startMusic(){ quizMusic.play().catch(()=>{}); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applyMute(); startMusic();
+      const unlock = () => { startMusic(); window.removeEventListener('click', unlock); window.removeEventListener('keydown', unlock); window.removeEventListener('touchstart', unlock); };
+      window.addEventListener('click', unlock, { once:true });
+      window.addEventListener('keydown', unlock, { once:true });
+      window.addEventListener('touchstart', unlock, { once:true });
+
+      // vidas iniciales (total = max_lives; current = lives)
+      setLives({{ lives }});
+    });
+
+    // ===== Refs UI =====
+    const qText      = document.getElementById('q-text');
+    const feedbackEl = document.getElementById('feedback');
+    const container  = document.querySelector('.quiz-container');
+
+    // ===== Helpers =====
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function clearFeedback(){ feedbackEl.textContent=''; feedbackEl.classList.remove('correct','incorrect'); }
+
+    function renderFeedback(isCorrect, correctTxt, userTxt){
+      feedbackEl.classList.remove('correct','incorrect');
+      feedbackEl.classList.add(isCorrect ? 'correct' : 'incorrect');
+      feedbackEl.innerHTML = isCorrect
+        ? `✅ ¡Bien, <strong>${escapeHtml(userTxt)}</strong> es correcto!`
+        : `❌ Nuu... ¿cómo que <strong>${escapeHtml(userTxt)}</strong>? Obviamente era <strong>${escapeHtml(correctTxt)}</strong>!`;
+    }
+
+    function setScore(val){
+      const el = document.getElementById('nav-score');
+      if (!el) return;
+      const n = Number(val);
+      el.textContent = Number.isFinite(n) ? String(n) : String(val);
+      const board = document.querySelector('.score-board');
+      board?.classList.add('flash');
+      setTimeout(()=> board?.classList.remove('flash'), 350);
+    }
+
+    const TOTAL_LIVES = {{ lives }}; // = max_lives inicial
+    function setLives(n){
+      const el = document.getElementById('lives');
+      if (!el) return;
+      n = Number(n);
+      let html = '';
+      for (let i=0;i<TOTAL_LIVES;i++){
+        html += `<span class="heart ${i<n?'':'lost'}">❤️</span>`;
+      }
+      el.innerHTML = html;
+    }
+
+    function renderNextButton(){
+      if (document.getElementById('nextBtn')) return;
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<div style="margin-top:12px"><button id="nextBtn" class="submit-button" type="button">Siguiente pregunta</button></div>`;
+      container.appendChild(wrap);
+      document.getElementById('nextBtn').addEventListener('click', onNext);
+    }
+
+    function renderQuestion(q){
+      qText.textContent = q.text;
+      clearFeedback();
+      document.getElementById('nextBtn')?.parentElement?.parentElement?.remove();
+
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.className = 'quiz-form';
+      form.id = 'quiz-form';
+
+      if (q.type === 'mc') {
+        (q.options || []).forEach(opt => {
+          const btn = document.createElement('button');
+          btn.type = 'submit';
+          btn.className = 'option-button';
+          btn.name = 'answer';
+          btn.value = opt;
+          btn.textContent = opt;
+          form.appendChild(btn);
+        });
+      } else {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'answer';
+        input.className = 'text-input';
+        input.placeholder = 'Escribí tu respuesta';
+
+        const submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.className = 'submit-button';
+        submit.textContent = 'Responder';
+
+        form.appendChild(input);
+        form.appendChild(submit);
+        setTimeout(()=> input.focus(), 0);
+      }
+
+      const oldForm = document.getElementById('quiz-form');
+      if (oldForm) oldForm.replaceWith(form);
+      else qText.insertAdjacentElement('afterend', form);
+
+      attachSubmitHandler();
+    }
+
+    // ===== AJAX =====
+    async function onNext(){
+      const resp = await fetch('{{ url_for("next_ajax") }}', { method:'POST' });
+      const data = await resp.json();
+      if (data.done){
+        window.location.href = data.reached_target ? '{{ url_for("meta") }}' : '{{ url_for("result") }}';
+        return;
+      }
+      setScore(data.score);
+      if (typeof data.lives !== 'undefined') setLives(data.lives);
+      renderQuestion(data.question);
+    }
+
+    function attachSubmitHandler(){
+      const form = document.getElementById('quiz-form');
+      if (!form) return;
+
+      form.addEventListener('submit', async (ev)=>{
+        ev.preventDefault();
+        const fd = new FormData(form);
+
+        // incluir botón presionado (MC)
+        const btn = ev.submitter;
+        if (btn && btn.name) fd.set(btn.name, btn.value);
+
+        // bloquear inputs
+        form.querySelectorAll('button, input').forEach(el => el.disabled = true);
+
+        const resp = await fetch('{{ url_for("answer_ajax") }}', { method:'POST', body: fd });
+        const data = await resp.json();
+        if (!data || !data.ok){
+          form.querySelectorAll('button, input').forEach(el => el.disabled = false);
+          return;
+        }
+
+        // SFX + feedback
+        if (data.correct) clonePlay(sfxCorrect); else clonePlay(sfxIncorrect);
+        renderFeedback(data.correct, data.correct_answer, data.user_answer);
+
+        // HUD
+        setScore(data.score);
+        if (typeof data.lives !== 'undefined') setLives(data.lives);
+
+        // Game Over → reset
+        if (data.game_over) {
+          setTimeout(()=> { window.location.href='{{ url_for("reset") }}'; }, 1200);
+          return;
+        }
+
+        // quitar form y mostrar Next
+        form.remove();
+        renderNextButton();
+      }, { once:true });
+    }
+
+    attachSubmitHandler();
+  </script>
 </body>
 </html>
