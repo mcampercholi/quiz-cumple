@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>¡Meta alcanzada!</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container center">
+        <h1>🎉 ¡Lo lograste! 🎉</h1>
+        <p>Obtuviste {{ score }} puntos.</p>
+        <p>Sos lo más. ¡Te amo!</p>
+        <a href="{{ url_for('reset') }}" class="btn">Volver a jugar</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="navbar">
+    Puntos actuales: {{ score }} / {{ target }}
+</div>
+
+<div class="quiz-container">
+    <div class="question-text">
+        {{ question.text }}
+    </div>
+
+    {% if not show_feedback %}
+        <form method="post" class="quiz-form">
+            {% if question.type == 'mc' %}
+                {% for option in question.options %}
+                    <button type="submit" name="answer" value="{{ option }}" class="option-button">{{ option }}</button>
+                {% endfor %}
+            {% else %}
+                <input type="text" name="answer" class="text-input" placeholder="Escribí tu respuesta" autofocus>
+                <button type="submit" class="submit-button">Responder</button>
+            {% endif %}
+        </form>
+    {% else %}
+        {% if last_correct %}
+            <div class="feedback correct">
+                ¡Biem, <strong>{{ user_answer }}</strong><br> es correcto!
+            </div>
+        {% else %}
+            <div class="feedback incorrect">
+                Nuu... ¿cómo que <strong>{{ user_answer }}</strong>? Obviamente era <strong>{{ question.answer }}</strong>!
+            </div>
+        {% endif %}
+        <form method="get" action="{{ url_for('quiz') }}">
+            <button type="submit" class="submit-button">Siguiente pregunta</button>
+        </form>
+    {% endif %}
+</div>
+
+</body>
+</html>

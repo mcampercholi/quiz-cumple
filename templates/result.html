@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resultado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container center">
+        <h1>Terminaste el quiz</h1>
+        <p>Obtuviste {{ score }} puntos.</p>
+        <p>¡Gracias por jugar!</p>
+        <a href="{{ url_for('reset') }}" class="btn">Volver a empezar</a>
+    </div>
+</body>
+</html>
