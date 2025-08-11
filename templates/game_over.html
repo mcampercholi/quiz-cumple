@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>😵 Game Over</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="meta">
+  <!-- ===== NAVBAR ===== -->
+  <div class="navbar">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <button class="nav-btn nav-reset" onclick="window.location.href='{{ url_for('reset') }}'">
+          <span class="icon">🔄</span><span class="label">Reiniciar</span>
+        </button>
+      </div>
+
+      <div class="nav-center">
+        <div class="score-board" aria-live="polite">
+          <span class="score-value-led">
+            <span id="nav-score">{{ score }}</span>
+            <span class="score-sep">/</span>
+            <span class="score-target">{{ target }}</span>
+          </span>
+        </div>
+        <!-- vidas (igual que en quiz, sin JS) -->
+        <div class="lives-board" aria-label="Vidas">
+          {% for i in range(max_lives) %}
+            <span class="heart{% if i >= lives %} lost{% endif %}">❤️</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <button id="muteBtn" class="nav-btn" type="button">
+          <span class="icon">🔇</span><span class="label">Mute</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONTENIDO ===== -->
+  <div class="quiz-container">
+    <h1 style="margin-top:0;">😵 ¡Game Over!</h1>
+    <p class="feedback incorrect" style="margin:8px 0 18px;">
+      Te quedaste sin vidas. Tu puntaje fue <strong>{{ score }}</strong> de <strong>{{ target }}</strong>.
+    </p>
+  </div>
+
+  <!-- Audio -->
+  <audio id="premio-audio" src="{{ url_for('static', filename='audio/gameover.mp3') }}" preload="auto"></audio>
+
+  <script>
+    const muteBtn = document.getElementById('muteBtn');
+    const premioAudio = document.getElementById('premio-audio');
+    let isMuted = localStorage.getItem('quiz_muted') === '1';
+
+    function applyMute() {
+      if (premioAudio) premioAudio.muted = isMuted;
+      muteBtn?.querySelector('.label')?.replaceChildren(
+        document.createTextNode(isMuted ? 'Unmute' : 'Mute')
+      );
+      localStorage.setItem('quiz_muted', isMuted ? '1' : '0');
+    }
+    muteBtn?.addEventListener('click', () => { isMuted = !isMuted; applyMute(); });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applyMute();
+      if (!isMuted && premioAudio) {
+        premioAudio.currentTime = 0;
+        premioAudio.play().catch(() => {
+          const unlock = () => {
+            premioAudio.play().finally(() => {
+              window.removeEventListener('click', unlock);
+              window.removeEventListener('keydown', unlock);
+              window.removeEventListener('touchstart', unlock);
+            });
+          };
+          window.addEventListener('click', unlock, { once:true });
+          window.addEventListener('keydown', unlock, { once:true });
+          window.addEventListener('touchstart', unlock, { once:true });
+        });
+      }
+    });
+  </script>
+</body>
+</html>

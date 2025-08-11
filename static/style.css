@@ -247,3 +247,44 @@ body.pre {
   .nav-btn .label { display: none; }
   .question-text { font-size: 1.35rem; }
 }
+
+/* ===== Premio (meta) ===== */
+/* ===== Premio (meta) ===== */
+.meta-container {
+  background: rgba(255,255,255,0.92);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.12);
+  max-width: 980px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.meta-container h2 { margin: 4px 0 8px; font-size: 2rem; }
+.meta-container p  { margin: 0 0 16px; font-size: 1.15rem; color: #2b6a3f; font-weight: 700; }
+
+/* grid responsivo */
+.meta-gallery {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  margin-top: 14px;
+}
+@media (min-width: 800px) {
+  .meta-gallery { grid-template-columns: 1fr 1fr; }
+}
+
+/* regla defensiva global por si alguna imagen se sale */
+.meta-container img { max-width: 100% !important; height: auto !important; }
+
+/* límite real de las fotos del premio */
+.meta-container .prize-img {
+  width: 100% !important;
+  max-width: 460px !important;
+  height: auto !important;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+

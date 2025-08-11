@@ -5,10 +5,12 @@
   <title>Quiz</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Confetti para celebración -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
-  <!-- ===== Navbar pastel ===== -->
+  <!-- ===== NAVBAR ===== -->
   <div class="navbar">
     <div class="nav-inner">
       <!-- Izquierda: Reiniciar -->
@@ -32,14 +34,14 @@
 
       <!-- Derecha: Mute -->
       <div class="nav-right">
-        <button id="muteBtn" class="nav-btn nav-mute" type="button">
+        <button id="muteBtn" class="nav-btn" type="button">
           <span class="icon">🔇</span><span class="label">Mute</span>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ===== Contenido ===== -->
+  <!-- ===== CONTENIDO ===== -->
   <div class="quiz-container">
     <div class="question-text" id="q-text">{{ question.text }}</div>
 
@@ -65,7 +67,7 @@
   <audio id="sfxIncorrect" src="{{ url_for('static', filename='audio/incorrect.mp3') }}" preload="auto"></audio>
 
   <script>
-    // ===== Audio =====
+    /* ===== Audio ===== */
     const quizMusic    = document.getElementById('quizMusic');
     const sfxCorrect   = document.getElementById('sfxCorrect');
     const sfxIncorrect = document.getElementById('sfxIncorrect');
@@ -74,10 +76,11 @@
     let isMuted = localStorage.getItem('quiz_muted') === '1';
     function applyMute() {
       [quizMusic, sfxCorrect, sfxIncorrect].forEach(a => a.muted = isMuted);
-      muteBtn.querySelector('.label').textContent = isMuted ? 'Unmute' : 'Mute';
+      const lbl = muteBtn?.querySelector('.label');
+      if (lbl) lbl.textContent = isMuted ? 'Unmute' : 'Mute';
       localStorage.setItem('quiz_muted', isMuted ? '1' : '0');
     }
-    muteBtn.addEventListener('click', () => { isMuted = !isMuted; applyMute(); });
+    muteBtn?.addEventListener('click', () => { isMuted = !isMuted; applyMute(); });
 
     quizMusic.volume = 0.35; sfxCorrect.volume = 0.85; sfxIncorrect.volume = 0.85;
     function clonePlay(el){ if(isMuted) return; const c=el.cloneNode(true); c.volume=el.volume; c.play().catch(()=>{}); }
@@ -90,16 +93,14 @@
       window.addEventListener('keydown', unlock, { once:true });
       window.addEventListener('touchstart', unlock, { once:true });
 
-      // vidas iniciales (total = max_lives; current = lives)
-      setLives({{ lives }});
+      setLives({{ lives }}); // vidas iniciales
     });
 
-    // ===== Refs UI =====
+    /* ===== Refs / helpers UI ===== */
     const qText      = document.getElementById('q-text');
     const feedbackEl = document.getElementById('feedback');
     const container  = document.querySelector('.quiz-container');
 
-    // ===== Helpers =====
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function clearFeedback(){ feedbackEl.textContent=''; feedbackEl.classList.remove('correct','incorrect'); }
 
@@ -107,7 +108,7 @@
       feedbackEl.classList.remove('correct','incorrect');
       feedbackEl.classList.add(isCorrect ? 'correct' : 'incorrect');
       feedbackEl.innerHTML = isCorrect
-        ? `✅ ¡Bien, <strong>${escapeHtml(userTxt)}</strong> es correcto!`
+        ? `✅ ¡Biem, <strong>${escapeHtml(userTxt)}</strong> es correcto!`
         : `❌ Nuu... ¿cómo que <strong>${escapeHtml(userTxt)}</strong>? Obviamente era <strong>${escapeHtml(correctTxt)}</strong>!`;
     }
 
@@ -116,12 +117,11 @@
       if (!el) return;
       const n = Number(val);
       el.textContent = Number.isFinite(n) ? String(n) : String(val);
-      const board = document.querySelector('.score-board');
-      board?.classList.add('flash');
-      setTimeout(()=> board?.classList.remove('flash'), 350);
+      document.querySelector('.score-board')?.classList.add('flash');
+      setTimeout(()=> document.querySelector('.score-board')?.classList.remove('flash'), 350);
     }
 
-    const TOTAL_LIVES = {{ lives }}; // = max_lives inicial
+    const TOTAL_LIVES = {{ lives }}; // = max_lives al inicio
     function setLives(n){
       const el = document.getElementById('lives');
       if (!el) return;
@@ -136,7 +136,9 @@
     function renderNextButton(){
       if (document.getElementById('nextBtn')) return;
       const wrap = document.createElement('div');
-      wrap.innerHTML = `<div style="margin-top:12px"><button id="nextBtn" class="submit-button" type="button">Siguiente pregunta</button></div>`;
+      wrap.innerHTML = `<div style="margin-top:12px">
+        <button id="nextBtn" class="submit-button" type="button">Siguiente pregunta</button>
+      </div>`;
       container.appendChild(wrap);
       document.getElementById('nextBtn').addEventListener('click', onNext);
     }
@@ -185,7 +187,28 @@
       attachSubmitHandler();
     }
 
-    // ===== AJAX =====
+    /* ===== Confetti + CTA (solo cuando el backend lo diga) ===== */
+    function shootConfetti(durationMs=1800){
+      const end = Date.now() + durationMs;
+      (function frame(){
+        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+    }
+    function showPrizeCTA(){
+      document.getElementById('nextBtn')?.parentElement?.parentElement?.remove();
+      feedbackEl.classList.remove('incorrect');
+      feedbackEl.classList.add('correct');
+      feedbackEl.innerHTML = `🎉 ¡Llegaste a la meta! <strong>¡Premio desbloqueado!</strong>`;
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<div style="margin-top:14px">
+        <a href="{{ url_for('meta') }}" class="submit-button" style="display:inline-block;text-decoration:none;">Ir al premio</a>
+      </div>`;
+      container.appendChild(wrap);
+    }
+
+    /* ===== AJAX ===== */
     async function onNext(){
       const resp = await fetch('{{ url_for("next_ajax") }}', { method:'POST' });
       const data = await resp.json();
@@ -206,7 +229,7 @@
         ev.preventDefault();
         const fd = new FormData(form);
 
-        // incluir botón presionado (MC)
+        // incluir el botón presionado (MC)
         const btn = ev.submitter;
         if (btn && btn.name) fd.set(btn.name, btn.value);
 
@@ -220,7 +243,7 @@
           return;
         }
 
-        // SFX + feedback
+        // SFX + feedback normal
         if (data.correct) clonePlay(sfxCorrect); else clonePlay(sfxIncorrect);
         renderFeedback(data.correct, data.correct_answer, data.user_answer);
 
@@ -228,9 +251,19 @@
         setScore(data.score);
         if (typeof data.lives !== 'undefined') setLives(data.lives);
 
-        // Game Over → reset
+        // === SOLO reaccionamos a banderas del backend ===
+        if (data.reached_target) {
+          // ocultar el formulario (sirve tanto para MC como para texto)
+          form.remove();
+          // por si hubiera quedado un "Siguiente"
+          document.getElementById('nextBtn')?.parentElement?.parentElement?.remove();
+          shootConfetti(1800);
+          showPrizeCTA();
+          return;
+        }
+
         if (data.game_over) {
-          setTimeout(()=> { window.location.href='{{ url_for("reset") }}'; }, 1200);
+          setTimeout(()=> { window.location.href='{{ url_for("game_over") }}'; }, 900);
           return;
         }
 
@@ -240,6 +273,7 @@
       }, { once:true });
     }
 
+    // attach inicial
     attachSubmitHandler();
   </script>
 </body>
